@@ -1,0 +1,48 @@
+# Variables de entorno locales
+.env
+
+# Volúmenes Docker
+minecraft-data/
+minecraft-world/
+mysql-data/
+minecraft-logs/
+
+# Archivos temporales
+*.log
+*.tmp
+*.bak
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+.DS_Store?
+
+# Backups
+backups/
+*.tar.gz
+*.zip
+
+# Node (si usas frontend adicional)
+node_modules/
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+venv/
+env/
+
+# JARs descargados
+*.jar
+!minecraft-server/mods/*.jar

@@ -1,0 +1,152 @@
+services:
+  # Servidor Minecraft Forge
+  minecraft:
+    build:
+      context: ./minecraft-server
+      dockerfile: Dockerfile
+      args:
+        MC_VERSION: "${MC_VERSION}"
+        FORGE_VERSION: "${FORGE_VERSION}"
+        PLAYIT_VERSION: "${PLAYIT_VERSION}"
+    container_name: minecraft-server
+    ports:
+      - "25565:25565"  # Puerto del servidor Minecraft
+      - "25575:25575"  # RCON (control remoto)
+    environment:
+      EULA: "TRUE"
+      SERVER_NAME: "${MC_SERVER_NAME}"
+      SERVER_PORT: "25565"
+      RCON_PORT: "25575"
+      RCON_PASSWORD: "${RCON_PASSWORD}"
+      MAX_PLAYERS: "${MAX_PLAYERS}"
+      DIFFICULTY: "${DIFFICULTY}"
+      GAMEMODE: "${GAMEMODE}"
+      JAVA_XMS: "${JAVA_XMS}"
+      JAVA_XMX: "${JAVA_XMX}"
+      DB_HOST: "mysql-db"
+      DB_PORT: "3306"
+      DB_NAME: "${DB_NAME}"
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      ENABLE_PLAYIT: "${ENABLE_PLAYIT:-false}"
+    user: "0:0"
+    volumes:
+      - minecraft-world:/minecraft/server/world
+      - minecraft-logs:/minecraft/server/logs
+      - ./minecraft-server/mods:/minecraft/server/mods:ro
+      - ./minecraft-server/config:/minecraft/server/config
+      - playit-config:/etc/playit
+    depends_on:
+      - mysql-db
+    networks:
+      - minecraft-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f java >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # Base de datos MySQL
+  mysql-db:
+    image: mysql:8.0
+    container_name: minecraft-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${DB_NAME}"
+      MYSQL_USER: "${DB_USER}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - minecraft-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # Panel web de control (API Backend)
+  web-panel:
+    build:
+      context: ./web-panel
+      dockerfile: Dockerfile
+    container_name: minecraft-panel
+    ports:
+      - "8080:5000"
+    environment:
+      DB_HOST: "mysql-db"
+      DB_PORT: "3306"
+      DB_NAME: "${DB_NAME}"
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      MC_HOST: "minecraft"
+      MC_PORT: "25575"
+      RCON_PASSWORD: "${RCON_PASSWORD}"
+      FLASK_ENV: "${FLASK_ENV}"
+      BACKUP_DIR: "/backups"
+      MC_CONTAINER_NAME: "minecraft-server"
+      MC_VERSION: "${MC_VERSION}"
+      FORGE_VERSION: "${FORGE_VERSION}"
+    depends_on:
+      - mysql-db
+      - minecraft
+    volumes:
+      - ./web-panel/app:/app
+      - backups:/backups
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - minecraft-world:/minecraft/server/world
+    user: "0:0"
+    networks:
+      - minecraft-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # Frontend React
+  frontend:
+    build:
+      context: .
+      dockerfile: ./web-panel/Dockerfile.frontend
+    container_name: minecraft-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - web-panel
+    networks:
+      - minecraft-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+volumes:
+  minecraft-world:
+  minecraft-logs:
+  mysql-data:
+  backups:
+  playit-config:
+
+networks:
+  minecraft-network:
+    driver: bridge

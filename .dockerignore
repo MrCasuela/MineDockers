@@ -1,0 +1,43 @@
+# VCS
+.git
+.gitignore
+
+# Environment files
+.env
+.env.*
+*.pem
+*.key
+
+# Node and frontend builds
+**/node_modules
+**/dist
+**/build
+**/.cache
+**/.vite
+**/.turbo
+**/.eslintcache
+
+# Python caches
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.venv
+**/venv
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# Logs
+**/*.log
+
+# Project data not needed for frontend image context
+backups/
+minecraft-server/
+database/
+scripts/
+playit/
+mysql-data/
