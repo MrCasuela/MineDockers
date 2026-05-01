@@ -46,3 +46,11 @@ env/
 # JARs descargados
 *.jar
 !minecraft-server/mods/*.jar
+
+# Agents
+.agents/
+
+# archivos que no se deben subir al repositorio
+CHECKLIST.md
+skills-lock.json
+

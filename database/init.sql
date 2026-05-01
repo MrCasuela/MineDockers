@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS players (
     first_join TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_join TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     total_playtime INT DEFAULT 0,
-    status VARCHAR(20) DEFAULT 'offline'
+    status VARCHAR(20) DEFAULT 'offline',
+    is_op BOOLEAN DEFAULT 0
 );
 
 -- Crear tabla de estadísticas

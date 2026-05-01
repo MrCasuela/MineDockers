@@ -95,6 +95,8 @@ def get_server_status():
     """Obtiene estado actual del servidor (online/offline, jugadores, etc)"""
     try:
         status = rcon.get_server_info()
+        online_players = status.get('onlinePlayers', []) if status.get('status') == 'online' else []
+        db.sync_online_players(online_players)
         return jsonify(status), 200
     except Exception as e:
         logger.error(f"Error getting server status: {e}")
@@ -203,6 +205,36 @@ def get_player(uuid):
         return jsonify(player), 200
     except Exception as e:
         logger.error(f"Error getting player: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/players/<uuid>/op', methods=['POST'])
+def op_player(uuid):
+    """Da permisos de operador a un jugador"""
+    try:
+        player = db.get_player(uuid)
+        if not player:
+            return jsonify({'error': 'Player not found'}), 404
+        result = rcon.op_player(player['name'])
+        db.set_player_op(uuid, True)
+        return jsonify({'message': f"Player {player['name']} opped", 'result': result}), 200
+    except Exception as e:
+        logger.error(f"Error opping player: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/players/<uuid>/deop', methods=['POST'])
+def deop_player(uuid):
+    """Quita permisos de operador a un jugador"""
+    try:
+        player = db.get_player(uuid)
+        if not player:
+            return jsonify({'error': 'Player not found'}), 404
+        result = rcon.deop_player(player['name'])
+        db.set_player_op(uuid, False)
+        return jsonify({'message': f"Player {player['name']} deopped", 'result': result}), 200
+    except Exception as e:
+        logger.error(f"Error deopping player: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -331,11 +363,18 @@ def create_backup():
 
 @app.route('/api/backups/<backup_id>/restore', methods=['POST'])
 def restore_backup(backup_id):
-    """Restaura un backup específico"""
+    """Restaura un backup específico. Requiere que el servidor esté detenido."""
     try:
+        # Bloquear restore si el servidor está corriendo
+        if docker_client.is_container_running():
+            return jsonify({
+                'error': 'El servidor debe estar detenido antes de restaurar un backup.',
+                'server_running': True
+            }), 409
+
         force = request.json.get('force', False) if request.is_json else False
         result = backup_handler.restore_backup(backup_id, force=force)
-        
+
         return jsonify({
             'message': 'Backup restore initiated',
             'result': result

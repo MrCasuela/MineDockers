@@ -7,7 +7,7 @@ export default function Logs() {
   const { logs, loading, fetchLogs, downloadLogs } = useStore()
   const [logType, setLogType] = useState(null)
   const [limit, setLimit] = useState(100)
-  const refreshMs = 5000
+  const refreshMs = 3000 // Cada 3 segundos se actualizan los logs
 
   useEffect(() => {
     fetchLogs(limit, logType)
@@ -28,7 +28,6 @@ export default function Logs() {
             <Download size={16} />
             Descargar
           </Button>
-          <Button onClick={() => fetchLogs(limit, logType)}>Actualizar</Button>
         </div>
       </div>
 
@@ -71,11 +70,10 @@ export default function Logs() {
             logs.map((log, idx) => (
               <div
                 key={idx}
-                className={`py-1 ${
-                  log.level === 'ERROR' ? 'text-red-400' :
-                  log.level === 'WARN' ? 'text-yellow-400' :
-                  'text-slate-300'
-                }`}
+                className={`py-1 ${log.level === 'ERROR' ? 'text-red-400' :
+                    log.level === 'WARN' ? 'text-yellow-400' :
+                      'text-slate-300'
+                  }`}
               >
                 <span className="text-slate-500">[{log.timestamp}]</span>
                 {' '}

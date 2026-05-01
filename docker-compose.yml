@@ -8,6 +8,7 @@ services:
         MC_VERSION: "${MC_VERSION}"
         FORGE_VERSION: "${FORGE_VERSION}"
         PLAYIT_VERSION: "${PLAYIT_VERSION}"
+        SERVER_TYPE: "${SERVER_TYPE:-forge}"
     container_name: minecraft-server
     ports:
       - "25565:25565"  # Puerto del servidor Minecraft
@@ -29,6 +30,7 @@ services:
       DB_USER: "${DB_USER}"
       DB_PASSWORD: "${DB_PASSWORD}"
       ENABLE_PLAYIT: "${ENABLE_PLAYIT:-false}"
+      SERVER_TYPE: "${SERVER_TYPE:-forge}"
     user: "0:0"
     volumes:
       - minecraft-world:/minecraft/server/world

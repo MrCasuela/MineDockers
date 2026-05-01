@@ -81,21 +81,41 @@ class RconHandler:
         try:
             if not self.is_connected():
                 return {'status': 'offline'}
-            
-            # Ejecutar comando para obtener info
+
             response = self.execute_command('list')
-            
+
             if response:
-                # Parsear respuesta "There are X of max Y players online: ..."
+                online_players, current, max_p = self._parse_list(response)
                 return {
                     'status': 'online',
                     'info': response,
+                    'currentPlayers': current,
+                    'maxPlayers': max_p,
+                    'onlinePlayers': online_players,
                     'tps': self.get_tps()
                 }
             return {'status': 'offline'}
         except Exception as e:
             logger.error(f"Error getting server info: {e}")
             return {'status': 'offline'}
+
+    def _parse_list(self, response: str):
+        """Parsea respuesta de 'list': 'There are X of a max of Y players online: name1, name2'"""
+        try:
+            m = re.search(r'There are (\d+) of a max(?: of)? (\d+) players online', response, re.IGNORECASE)
+            if not m:
+                m = re.search(r'(\d+)/(\d+)', response)
+            current = int(m.group(1)) if m else 0
+            max_p = int(m.group(2)) if m else 20
+            players = []
+            if ':' in response:
+                names_part = response.split(':', 1)[1].strip()
+                if names_part:
+                    players = [n.strip() for n in names_part.split(',') if n.strip()]
+            return players, current, max_p
+        except Exception as e:
+            logger.error(f"Error parsing list response: {e}")
+            return [], 0, 20
 
     def get_tps(self) -> Optional[float]:
         """Obtiene TPS desde comandos RCON si están disponibles"""
@@ -182,6 +202,22 @@ class RconHandler:
             logger.error(f"Error banning player: {e}")
             return f"Error: {e}"
     
+    def op_player(self, player_name: str) -> str:
+        """Da permisos de operador a un jugador"""
+        try:
+            return self.execute_command(f'op {player_name}') or f"{player_name} opped"
+        except Exception as e:
+            logger.error(f"Error opping player: {e}")
+            return f"Error: {e}"
+
+    def deop_player(self, player_name: str) -> str:
+        """Quita permisos de operador a un jugador"""
+        try:
+            return self.execute_command(f'deop {player_name}') or f"{player_name} deopped"
+        except Exception as e:
+            logger.error(f"Error deopping player: {e}")
+            return f"Error: {e}"
+
     def unban_player(self, player_name: str) -> str:
         """Desbanea a un jugador"""
         try:

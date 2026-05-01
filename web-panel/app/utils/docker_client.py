@@ -89,6 +89,18 @@ class DockerClient:
             logger.error(f"Docker logs error: {exc}")
             return []
 
+    def is_container_running(self) -> bool:
+        """Returns True if the minecraft container is currently running."""
+        container = self._get_container()
+        if not container:
+            return False
+        try:
+            container.reload()
+            return container.status == "running"
+        except Exception as exc:
+            logger.error(f"Docker status check error: {exc}")
+            return False
+
     def stop_container(self, timeout: int = 30) -> Optional[str]:
         container = self._get_container()
         if not container:

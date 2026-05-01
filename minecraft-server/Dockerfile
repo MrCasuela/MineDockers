@@ -6,6 +6,7 @@ ARG FORGE_VERSION=FORGE_VERSION
 ARG PLAYIT_VERSION=PLAYIT_VERSION
 ARG JAVA_XMS=JAVA_XMS
 ARG JAVA_XMX=JAVA_XMX
+ARG SERVER_TYPE=forge
 
 # Variables de entorno
 ENV MINECRAFT_HOME=/minecraft/server
@@ -14,12 +15,14 @@ ENV JAVA_XMX=$JAVA_XMS
 ENV PLAYIT_VERSION=$PLAYIT_VERSION
 ENV FORGE_VERSION=$FORGE_VERSION
 ENV MC_VERSION=$MC_VERSION
+ENV SERVER_TYPE=$SERVER_TYPE
 
 # Instalar Java y dependencias necesarias
 RUN apt-get update && apt-get install -y \
     default-jdk \
     wget \
     curl \
+    jq \
     git \
     nano \
     && rm -rf /var/lib/apt/lists/*
@@ -46,16 +49,27 @@ WORKDIR $MINECRAFT_HOME
 COPY mods/ /minecraft/server/mods/
 COPY config/ /minecraft/server/config/
 
-# Descargar Forge durante la construcción
-RUN echo "Descargando Forge $FORGE_VERSION para Minecraft $MC_VERSION..." && \
-    cd $MINECRAFT_HOME && \
-    wget -O forge-installer.jar "https://maven.minecraftforge.net/net/minecraftforge/forge/${MC_VERSION}-${FORGE_VERSION}/forge-${MC_VERSION}-${FORGE_VERSION}-installer.jar" && \
-    echo "✓ Forge descargado, instalando..." && \
-    java -jar forge-installer.jar --installServer && \
-    echo "✓ Forge instalado" && \
-    rm -f forge-installer.jar && \
-    ls -la $MINECRAFT_HOME | grep -E "forge|eula" && \
-    echo "eula=true" > eula.txt
+# Descargar servidor según SERVER_TYPE (forge | vanilla)
+RUN if [ "$SERVER_TYPE" = "vanilla" ]; then \
+        echo "Descargando servidor Vanilla ${MC_VERSION}..." && \
+        VERSION_URL=$(curl -s "https://launchermeta.mojang.com/mc/game/version_manifest.json" | \
+            jq -r --arg v "${MC_VERSION}" '.versions[] | select(.id == $v) | .url') && \
+        if [ -z "$VERSION_URL" ] || [ "$VERSION_URL" = "null" ]; then \
+            echo "❌ Versión ${MC_VERSION} no encontrada en el manifest de Mojang" && exit 1; \
+        fi && \
+        SERVER_URL=$(curl -s "$VERSION_URL" | jq -r '.downloads.server.url') && \
+        wget -O minecraft_server.jar "$SERVER_URL" && \
+        echo "✓ Servidor vanilla ${MC_VERSION} descargado"; \
+    elif [ "$SERVER_TYPE" = "forge" ]; then \
+        echo "Descargando Forge ${FORGE_VERSION} para Minecraft ${MC_VERSION}..." && \
+        wget -O forge-installer.jar "https://maven.minecraftforge.net/net/minecraftforge/forge/${MC_VERSION}-${FORGE_VERSION}/forge-${MC_VERSION}-${FORGE_VERSION}-installer.jar" && \
+        echo "✓ Forge descargado, instalando..." && \
+        java -jar forge-installer.jar --installServer && \
+        echo "✓ Forge instalado" && \
+        rm -f forge-installer.jar; \
+    else \
+        echo "❌ SERVER_TYPE desconocido: ${SERVER_TYPE}. Use 'forge' o 'vanilla'" && exit 1; \
+    fi
 
 # Script de inicio simplificado
 COPY entrypoint.sh /entrypoint.sh

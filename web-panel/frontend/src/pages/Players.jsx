@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { useStore } from '../store/store'
 import { Button, LoadingSpinner, EmptyState, TimeAgo } from '../components/Common'
 import Modal from '../components/Modal'
-import { Users, Trash2, Ban, LogOut } from 'lucide-react'
+import { Users, Trash2, Ban, LogOut, ShieldCheck, ShieldOff } from 'lucide-react'
 
 export default function Players() {
-  const { players, loading, fetchPlayers, kickPlayer, banPlayer } = useStore()
+  const { players, loading, fetchPlayers, kickPlayer, banPlayer, opPlayer, deopPlayer } = useStore()
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState(null)
   const [action, setAction] = useState(null)
@@ -62,7 +62,14 @@ export default function Players() {
           <tbody>
             {players.map(player => (
               <tr key={player.uuid} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
-                <td className="py-3 px-4 font-medium">{player.name}</td>
+                <td className="py-3 px-4 font-medium">
+                  <div className="flex items-center gap-2">
+                    {player.name}
+                    {player.is_op && (
+                      <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-yellow-500/20 text-yellow-400">OP</span>
+                    )}
+                  </div>
+                </td>
                 <td className="py-3 px-4 text-slate-400 font-mono text-xs">
                   {player.uuid.substring(0, 8)}...
                 </td>
@@ -83,6 +90,23 @@ export default function Players() {
                 </td>
                 <td className="py-3 px-4 text-right">
                   <div className="flex justify-end gap-2">
+                    {player.is_op ? (
+                      <button
+                        onClick={() => deopPlayer(player.uuid)}
+                        className="p-2 hover:bg-yellow-600/20 text-yellow-400 rounded transition-colors"
+                        title="Quitar Operador"
+                      >
+                        <ShieldOff size={16} />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => opPlayer(player.uuid)}
+                        className="p-2 hover:bg-green-600/20 text-green-400 rounded transition-colors"
+                        title="Dar Operador"
+                      >
+                        <ShieldCheck size={16} />
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setSelectedPlayer(player)

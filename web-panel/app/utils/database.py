@@ -2,6 +2,7 @@
 Database handler para conexiones MySQL y consultas
 """
 
+import uuid as uuid_lib
 import mysql.connector
 import logging
 from typing import List, Dict, Any, Optional
@@ -23,6 +24,7 @@ class Database:
         }
         self.connection = None
         self._connect()
+        self._migrate()
     
     def _connect(self):
         """Establece conexión a la base de datos"""
@@ -33,6 +35,15 @@ class Database:
             logger.error(f"Database connection failed: {e}")
             self.connection = None
     
+    def _migrate(self):
+        """Aplica migraciones a DBs existentes"""
+        try:
+            self.execute_update(
+                "ALTER TABLE players ADD COLUMN IF NOT EXISTS is_op BOOLEAN DEFAULT 0"
+            )
+        except Exception as e:
+            logger.warning(f"Migration warning: {e}")
+
     def is_connected(self) -> bool:
         """Verifica si la conexión está activa"""
         try:
@@ -80,34 +91,66 @@ class Database:
         """Obtiene lista de todos los jugadores"""
         query = """
             SELECT id, uuid, username AS name, last_join,
-                   total_playtime AS playtime, status, first_join AS created_at
+                   total_playtime AS playtime, status, first_join AS created_at,
+                   is_op
             FROM players
             ORDER BY last_join DESC
         """
         return self.execute_query(query)
-    
+
     def get_player(self, uuid: str) -> Optional[Dict]:
         """Obtiene detalles de un jugador específico"""
         query = """
             SELECT id, uuid, username AS name, last_join,
-                   total_playtime AS playtime, status, first_join AS created_at
+                   total_playtime AS playtime, status, first_join AS created_at,
+                   is_op
             FROM players
             WHERE uuid = %s
         """
         results = self.execute_query(query, (uuid,))
         return results[0] if results else None
-    
+
     def get_player_by_name(self, name: str) -> Optional[Dict]:
         """Obtiene un jugador por nombre"""
         query = """
             SELECT id, uuid, username AS name, last_join,
-                   total_playtime AS playtime, status, first_join AS created_at
+                   total_playtime AS playtime, status, first_join AS created_at,
+                   is_op
             FROM players
             WHERE username = %s
         """
         results = self.execute_query(query, (name,))
         return results[0] if results else None
+
+    def set_player_op(self, uuid: str, is_op: bool) -> bool:
+        """Actualiza el estado de operador de un jugador"""
+        return self.execute_update(
+            "UPDATE players SET is_op = %s WHERE uuid = %s",
+            (1 if is_op else 0, uuid)
+        )
     
+    def sync_online_players(self, player_names: list) -> None:
+        """Marca jugadores de la lista como online y todos los demás como offline"""
+        try:
+            self.execute_update("UPDATE players SET status = 'offline' WHERE status = 'online'")
+            if not player_names:
+                return
+            now = datetime.now()
+            for name in player_names:
+                existing = self.get_player_by_name(name)
+                if existing:
+                    self.execute_update(
+                        "UPDATE players SET status = 'online', last_join = %s WHERE username = %s",
+                        (now, name)
+                    )
+                else:
+                    self.execute_update(
+                        "INSERT INTO players (uuid, username, status, first_join, last_join) VALUES (%s, %s, 'online', %s, %s)",
+                        (str(uuid_lib.uuid4()), name, now, now)
+                    )
+        except Exception as e:
+            logger.error(f"Error syncing online players: {e}")
+
     def ban_player(self, uuid: str, reason: str = "") -> bool:
         """Marca un jugador como baneado"""
         query = """

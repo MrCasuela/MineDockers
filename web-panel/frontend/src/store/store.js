@@ -61,6 +61,7 @@ export const useStore = create((set, get) => ({
       }
 
       set({ server: nextServer, error: errorMessage })
+      await get().fetchPlayers()
     } catch (error) {
       console.error('Error fetching server status:', error)
       set({ error: 'Error obteniendo estado del servidor' })
@@ -133,6 +134,24 @@ export const useStore = create((set, get) => ({
     }
   },
 
+  opPlayer: async (uuid) => {
+    try {
+      await api.opPlayer(uuid)
+      await get().fetchPlayers()
+    } catch (error) {
+      set({ error: 'Error dando operador' })
+    }
+  },
+
+  deopPlayer: async (uuid) => {
+    try {
+      await api.deopPlayer(uuid)
+      await get().fetchPlayers()
+    } catch (error) {
+      set({ error: 'Error quitando operador' })
+    }
+  },
+
   // Backups
   fetchBackups: async () => {
     try {
@@ -158,6 +177,7 @@ export const useStore = create((set, get) => ({
       await get().fetchBackups()
     } catch (error) {
       set({ error: 'Error restaurando backup' })
+      throw error  // propagar para que el componente muestre el mensaje específico
     }
   },
 

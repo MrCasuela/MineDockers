@@ -1,5 +1,74 @@
 # 📋 Resumen de Cambios - Minecraft Docker Panel
 
+## 🆕 v2.1.1 (2026-04-30)
+
+### Corrección: jugadores no aparecían en el panel
+
+- `rcon_handler.py`: `get_server_info()` ahora parsea la respuesta del comando RCON `list` — extrae nombres de jugadores online, cuenta actual y máxima. Nuevo método `_parse_list()`
+- `database.py`: nuevo método `sync_online_players(names)` — marca los jugadores de la lista como `online` y los demás como `offline`; hace upsert si el jugador no existe en DB
+- `app.py`: endpoint `GET /api/server/status` llama `db.sync_online_players()` en cada poll, manteniendo la DB sincronizada automáticamente
+- `store.js`: `fetchServerStatus` ahora también llama `fetchPlayers()` — el Dashboard refleja los cambios cada 5s sin intervalo separado
+
+### Nueva función: gestión de Operadores
+
+- `rcon_handler.py`: métodos `op_player()` y `deop_player()` via RCON
+- `database.py`: columna `is_op BOOLEAN DEFAULT 0` en tabla `players`; método `set_player_op()`; migración automática con `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` para DBs existentes
+- `app.py`: endpoints `POST /api/players/<uuid>/op` y `POST /api/players/<uuid>/deop`
+- `api.js`: funciones `opPlayer()` / `deopPlayer()`
+- `store.js`: acciones `opPlayer` / `deopPlayer`
+- `Players.jsx`: botón ShieldCheck verde (dar OP) / ShieldOff amarillo (quitar OP) por jugador; badge "OP" junto al nombre cuando el jugador tiene operador
+
+### Limpieza: scripts obsoletos eliminados
+
+- `scripts/playit-setup.sh`: eliminado — descargaba playit al host; playit ahora corre dentro del container Docker
+- `scripts/playit-run.sh`: eliminado — ejecutaba binario del host; reemplazado por `playit-docker-run.sh`
+- `scripts/full-setup.sh`: eliminado — llamaba a `playit-setup.sh` en paso 5; ya no aplica con el enfoque Docker
+
+### Corrección: botón Restaurar backup no abría modal
+
+- `Backups.jsx`: los `<Modal>` solo existían en el branch con backups (`backups.length > 0`). Al no haber backups, el componente hacía `return` anticipado y los modales nunca se montaban. Fix: modales extraídos a variable `modals` e incluidos en ambos returns
+- `Backups.jsx`: eliminado `window.confirm()` redundante dentro del `onConfirm` del modal — causa interacciones bloqueadas en algunos browsers
+- `store.js`: `restoreBackup` ahora re-lanza el error para que el componente pueda mostrar el mensaje específico del backend (ej. error 409)
+- `index.css`: agregado `disabled:opacity-40 disabled:cursor-not-allowed` a todos los estilos `.btn-*` — el estado `disabled` ahora es visible
+
+### Nueva función: bloqueo de restauración con servidor online
+
+- `docker_client.py`: nuevo método `is_container_running()` — consulta el status del container minecraft via Docker SDK
+- `app.py`: endpoint `POST /api/backups/<id>/restore` ahora retorna `409` si el container está corriendo, previniendo corrupción del mundo
+- `Backups.jsx`: botón Restaurar deshabilitado cuando `server.status === 'online'`; tooltip "Apaga el servidor primero" al hacer hover; aviso visible en el header de la página
+
+### Corrección: timestamps de backups mostraban tiempo futuro
+
+- `backup_handler.py`: todos los `datetime.now()` / `datetime.fromtimestamp()` reemplazados por `datetime.utcnow()` / `datetime.utcfromtimestamp()` con sufijo `'Z'` — el browser ahora interpreta los timestamps como UTC en lugar de hora local, evitando que aparezca "en alrededor de 4 horas" en lugar de "hace X minutos"
+
+### Corrección: compatibilidad difficulty/gamemode para Forge 1.7.10 – latest
+
+- `scripts/entrypoint.sh`: detecta `MC_VERSION` en runtime y convierte automáticamente los valores de `difficulty` y `gamemode`
+  - Pre-1.13 (1.7.10–1.12.2): convierte texto → número (`normal`→`2`, `survival`→`0`, etc.)
+  - 1.13+: usa texto directamente (`normal`, `survival`, etc.)
+- El `.env` y `.env.example` mantienen siempre valores en texto legible — la conversión es transparente al usuario
+
+### Limpieza: carpeta `playit/` del host eliminada
+
+- Directorio `./playit/` eliminado — contenía el binario `playit-linux-amd64` y carpeta `config/` descargados por los scripts host-based ya eliminados
+- playit ahora vive exclusivamente dentro del container Docker (`/usr/local/bin/playit`) con su configuración en el volumen `playit-config`
+
+### Nueva función: soporte Forge y Vanilla
+
+- `.env` / `.env.example`: nueva variable `SERVER_TYPE=forge|vanilla` — controla qué servidor se descarga e instala durante el build
+- `minecraft-server/Dockerfile`: `ARG/ENV SERVER_TYPE`; descarga condicional: Forge vía Maven, Vanilla vía Mojang Version Manifest API; `jq` agregado a dependencias para parsear el manifest JSON; error explícito si `SERVER_TYPE` es inválido o la versión no existe
+- `scripts/entrypoint.sh`: detección de JAR condicional según `SERVER_TYPE` (`forge-*.jar` para Forge, `minecraft_server*.jar` para Vanilla); mensaje de inicio diferenciado; variable `SERVER_JAR` unificada
+- `docker-compose.yml`: `SERVER_TYPE` agregado a build args y environment del servicio `minecraft`
+- `FORGE_VERSION` se ignora automáticamente cuando `SERVER_TYPE=vanilla`
+
+### Ajustes: auto-refresh reducido y botones Actualizar eliminados
+
+- `Dashboard.jsx` / `Logs.jsx`: intervalo de auto-refresh reducido de 5s a **3s** — datos casi en tiempo real
+- `Dashboard.jsx`: botón "Actualizar" eliminado — redundante con el auto-refresh
+- `Logs.jsx`: botón "Actualizar" eliminado — el `useEffect` con dependencias en `[limit, logType]` ya recarga al cambiar filtros
+
+---
+
 ## 🆕 v2.1.0 (2026-04-29)
 
 ### Integración playit.gg en Docker
@@ -217,25 +286,6 @@ MySQL    RCON (25575)
 - [x] Información del servidor
 - [x] Interfaz segura
 
-## 🚀 Cómo Usar
-
-### Desarrollo Local
-```bash
-cd web-panel/frontend
-npm install
-npm run dev
-# Frontend en http://localhost:3000
-# API en http://localhost:8080 (u otro puerto)
-```
-
-### Producción (Docker)
-```bash
-docker-compose up -d
-# Frontend: http://localhost:3000
-# API: http://localhost:8080
-# Servidor: localhost:25565
-```
-
 ## 📊 Mejoras Rendimiento
 
 | Métrica | Anterior | Actual |
@@ -273,33 +323,5 @@ DB_PASSWORD=minecraft_password
 - **Accesible** - Colores contrastantes, iconos claros
 - **Intuitivo** - Navegación clara, acciones obvias
 - **Profesional** - Colores gaming (azul, verde, rojo)
-
-## 📞 Próximas Mejoras Posibles
-
-- [ ] Autenticación/Autorización
-- [ ] Soporte multi-usuario con roles
-- [ ] Estadísticas avanzadas (gráficos históricos)
-- [ ] Chat en vivo
-- [ ] Editor de configuración
-- [ ] Instalador de mods desde UI
-- [ ] Webhooks Discord
-- [ ] App móvil (React Native)
-
-## ✅ Checklist Final
-
-- [x] API Flask expandida
-- [x] Frontend React completamente funcional
-- [x] Docker configurado
-- [x] Documentación completa
-- [x] Pruebas básicas
-- [x] Seguridad revisada
-- [x] Rendimiento optimizado
-- [x] Estructura modular
-- [x] Fácil de mantener
-- [x] Listo para producción
-
----
-
-**🎉 ¡Panel Minecraft v2.0 completamente implementado!**
 
 Para más detalles, ver `FRONTEND_GUIDE.md` y `web-panel/frontend/README.md`

@@ -33,7 +33,7 @@ class BackupHandler:
                     backups.append({
                         'id': filename,
                         'name': filename,
-                        'created_at': datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                        'created_at': datetime.utcfromtimestamp(stat.st_ctime).isoformat() + 'Z',
                         'size': stat.st_size,
                         'size_mb': round(stat.st_size / (1024 * 1024), 2)
                     })
@@ -69,7 +69,7 @@ class BackupHandler:
             backup_info = {
                 'id': name,
                 'name': name,
-                'created_at': datetime.now().isoformat(),
+                'created_at': datetime.utcnow().isoformat() + 'Z',
                 'size': stat.st_size,
                 'size_mb': round(stat.st_size / (1024 * 1024), 2)
             }
@@ -111,7 +111,7 @@ class BackupHandler:
             return {
                 'success': True,
                 'message': f'Backup {backup_id} restored successfully',
-                'restored_at': datetime.now().isoformat()
+                'restored_at': datetime.utcnow().isoformat() + 'Z'
             }
         except Exception as e:
             logger.error(f"Error restoring backup: {e}")
@@ -149,7 +149,7 @@ class BackupHandler:
             return {
                 'id': backup_id,
                 'name': backup_id,
-                'created_at': datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                'created_at': datetime.utcfromtimestamp(stat.st_ctime).isoformat() + 'Z',
                 'size': stat.st_size,
                 'size_mb': round(stat.st_size / (1024 * 1024), 2)
             }

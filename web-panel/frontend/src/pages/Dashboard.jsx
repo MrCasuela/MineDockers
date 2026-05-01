@@ -11,7 +11,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchServerStatus()
-    const interval = setInterval(fetchServerStatus, 5000) // Actualizar cada 5s
+    const interval = setInterval(fetchServerStatus, 3000) // Cada 3 segundos se actualiza el estado del servidor
     return () => clearInterval(interval)
   }, [])
 
@@ -82,14 +82,6 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <div className="flex gap-3">
-          <Button
-            variant="secondary"
-            onClick={() => fetchServerStatus()}
-            className="flex items-center gap-2"
-          >
-            <RotateCw size={16} />
-            Actualizar
-          </Button>
           <Button variant="secondary" onClick={handleRestart} className="flex items-center gap-2">
             <RotateCw size={16} />
             Reiniciar

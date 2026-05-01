@@ -25,8 +25,12 @@ export const kickPlayer = (uuid, reason = 'Kicked by admin') =>
   api.post(`/players/${uuid}/kick`, { reason }).then(r => r.data)
 export const banPlayer = (uuid, reason = 'Banned by admin') => 
   api.post(`/players/${uuid}/ban`, { reason }).then(r => r.data)
-export const unbanPlayer = (uuid) => 
+export const unbanPlayer = (uuid) =>
   api.post(`/players/${uuid}/unban`).then(r => r.data)
+export const opPlayer = (uuid) =>
+  api.post(`/players/${uuid}/op`).then(r => r.data)
+export const deopPlayer = (uuid) =>
+  api.post(`/players/${uuid}/deop`).then(r => r.data)
 
 // Logs endpoints
 export const getLogs = (limit = 100, type = null) => 
